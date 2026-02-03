@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ניתוח מגמות בפיזיקה - גליל מזרחי</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Assistant', sans-serif;
+        }
+        .card-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+        @media (min-width: 1024px) {
+            .jewish-grid-container {
+                grid-column: span 2 / span 2;
+            }
+             .jewish-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1.5rem;
+            }
+        }
+        .analysis-card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">ניתוח מגמות תלמידי פיזיקה בגליל המזרחי</h1>
+            <p class="text-lg text-slate-600 mt-2">סקירה כללית לפי מגזרים לשנים 2021-2023</p>
+            <p class="text-xl font-semibold text-slate-700 mt-4">בשנת 2023 היו 284 זכאים לבגרות 5 יח"ל בפיזיקה באשכול גליל מזרחי (11% זכאות)</p>
+            <p class="text-sm text-slate-500 mt-1">הנתונים עובדו על ידי מרכז הידע האזורי גליל מזרחי</p>
+        </header>
+
+        <main id="dashboard" class="card-container">
+            <!-- Data will be injected here by JavaScript -->
+        </main>
+
+        <section id="charts-section" class="mt-12">
+            <div class="analysis-card mb-8">
+                <h2 class="text-xl font-bold text-center mb-4">שיעור הזכאים לבגרות 5 יח"ל בפיזיקה - לפי רשות (2023)</h2>
+                <canvas id="eligibilityRateChart"></canvas>
+                 <p class="text-sm text-slate-600 mt-4 text-center">
+                    <strong>הערה:</strong> תיכון תמר (ישיבה תיכונית מדעית) במועצה אזורית גולן מציג שיעור זכאות של <strong>43.3%</strong>, נתון הגבוה משמעותית מהממוצעים ומהבא אחריו ברשימה (בוקעאתה, 23.1%).
+                </p>
+            </div>
+             <div class="analysis-card mb-8">
+                <h2 class="text-xl font-bold text-center mb-4">מגמת הזכאות לבגרות 5 יח"ל בפיזיקה באשכול (2017-2023)</h2>
+                <canvas id="eligibilityTimeSeriesChart"></canvas>
+            </div>
+            <div class="analysis-card mb-8">
+                <h2 class="text-xl font-bold text-center mb-4">השוואת מספר נבחנים ממוצע בפיזיקה בין מוסדות הלימוד</h2>
+                <canvas id="schoolExamineesChart"></canvas>
+                <p class="text-xs text-slate-500 mt-2 text-center">
+                    הנתונים מייצגים ממוצע תלת-שנתי (2021-2023)
+                </p>
+            </div>
+            <div class="analysis-card mb-8">
+                <h2 class="text-xl font-bold text-center mb-4">התפלגות תיכונים לפי הגשה לבגרות בפיזיקה</h2>
+                <div class="chart-container" style="position: relative; height:300px; width:100%; max-width: 300px; margin: auto;">
+                    <canvas id="physicsProgramDistributionChart"></canvas>
+                </div>
+                <div id="school-breakdown" class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                    <!-- Lists will be injected here by JS -->
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 text-sm text-slate-600 border-t pt-6">
+            <h3 class="font-bold text-base text-slate-800">הערות</h3>
+            <ul class="list-disc pr-5 mt-2 space-y-1">
+                <li>לא קיים מידע על מוסדות עם פחות מ-11 נבחנים ברמת מוסד, מקצוע ומספר יח"ל, מן הטעם שבעיבוד על אוכלוסייה מצומצמת שינוי קטן של מספר מוחלט עשוי לגרום לשינוי גדול בממוצע, דבר שעשוי לגרום להטעיית הציבור.</li>
+                <li>נתוני 2021 נכונים ל-22/04/2023</li>
+                <li>נתוני 2022 נכונים ל-26/05/2024</li>
+                <li>נתוני 2023 נכונים ל-05/07/2024</li>
+                <li>הופק ב-15/07/2024</li>
+            </ul>
+             <div class="mt-4">
+                 <h3 class="font-bold text-base text-slate-800">מקורות</h3>
+                 <ul class="list-disc pr-5 mt-2 space-y-1">
+                    <li>התנועה לחופש המידע, משרד החינוך, מינהל טכנולוגיות דיגיטליות ומידע, מרכז מידע בחינות בגרות.</li>
+                    <li>דשבורד 'פוטנציאל הון אנושי' של SFI, משרד העבודה ורשות החדשנות.</li>
+                 </ul>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        // --- DATA ---
+        const aggregatedData = [
+            { "שם מוסד": "אברט חצור הגלילית", "רשות מקומית": "חצור הגלילית", "פיקוח": "ממלכתי", "מגזר": "יהודי", "ממוצע ציון סופי": 81.545, "ממוצע מספר נבחנים": 11.0, "שנים קיימות": [2022, 2023] },
+            { "שם מוסד": "אורט דנציגר ק. שמונה", "רשות מקומית": "קרית שמונה", "פיקוח": "ממלכתי", "מגזר": "יהודי", "ממוצע ציון סופי": 86.22, "ממוצע מספר נבחנים": 21.666667, "שנים קיימות": [2021, 2022, 2023] },
+            { "שם מוסד": "דרכא נופי גולן", "רשות מקומית": "קצרין", "פיקוח": "ממלכתי", "מגזר": "יהודי", "ממוצע ציון סופי": 83.91, "ממוצע מספר נבחנים": 11.0, "שנים קיימות": [2022, 2023] },
+            { "שם מוסד": "ישיבה תיכונית חיספין", "רשות מקומית": "גולן", "פיקוח": "ממלכתי דתי", "מגזר": "יהודי", "ממוצע ציון סופי": 91.833333, "ממוצע מספר נבחנים": 19.333333, "שנים קיימות": [2021, 2022, 2023] },
+            { "שם מוסד": "ישיבת תיכונית אמי\"ת", "רשות מקומית": "צפת", "פיקוח": "ממלכתי דתי", "מגזר": "יהודי", "ממוצע ציון סופי": 75.413333, "ממוצע מספר נבחנים": 13.0, "שנים קיימות": [2021, 2022, 2023] },
+            { "שם מוסד": "מקיף אנה פרנק", "רשות מקומית": "הגליל העליון", "פיקוח": "ממלכתי", "מגזר": "יהודי", "ממוצע ציון סופי": 92.2, "ממוצע מספר נבחנים": 13.5, "שנים קיימות": [2021, 2023] },
+            { "שם מוסד": "מקיף הר וגיא", "רשות מקומית": "הגליל העליון", "פיקוח": "ממלכתי", "מגזר": "יהודי", "ממוצע ציון סופי": 85.896667, "ממוצע מספר נבחנים": 19.0, "שנים קיימות": [2021, 2022, 2023] },
+            { "שם מוסד": "מקיף עמק החולה", "רשות מקומית": "הגליל העליון", "פיקוח": "ממלכתי", "מגזר": "יהודי", "ממוצע ציון סופי": 88.916667, "ממוצע מספר נבחנים": 12.666667, "שנים קיימות": [2021, 2022, 2023] },
+            { "שם מוסד": "עיוני מג'דל שמס", "רשות מקומית": "מג'דל שמס", "פיקוח": "ממלכתי", "מגזר": "דרוזי", "ממוצע ציון סופי": 79.906667, "ממוצע מספר נבחנים": 46.0, "שנים קיימות": [2021, 2022, 2023] },
+            { "שם מוסד": "עמל בגין צפת", "רשות מקומית": "צפת", "פיקוח": "ממלכתי", "מגזר": "יהודי", "ממוצע ציון סופי": 76.09, "ממוצע מספר נבחנים": 11.0, "שנים קיימות": [2022] },
+            { "שם מוסד": "שש שנתי בוקעאתא", "רשות מקומית": "בוקעאתה", "פיקוח": "ממלכתי", "מגזר": "דרוזי", "ממוצע ציון סופי": 82.44, "ממוצע מספר נבחנים": 25.0, "שנים קיימות": [2021, 2023] },
+            { "שם מוסד": "תיכון מסעדה", "רשות מקומית": "מסעדה", "פיקוח": "ממלכתי", "מגזר": "דרוזי", "ממוצע ציון סופי": 75.19, "ממוצע מספר נבחנים": 21.0, "שנים קיימות": [2021, 2022] },
+            { "שם מוסד": "תיכון פה הזהב", "רשות מקומית": "גוש חלב", "פיקוח": "ממלכתי", "מגזר": "ערבי", "ממוצע ציון סופי": 89.36, "ממוצע מספר נבחנים": 11.0, "שנים קיימות": [2022] },
+            { "שם מוסד": "תיכון תמר", "רשות מקומית": "גולן", "פיקוח": "ממלכתי דתי", "מגזר": "יהודי", "ממוצע ציון סופי": 90.15, "ממוצע מספר נבחנים": 13.0, "שנים קיימות": [2023] },
+        ];
+        
+        const nationalAverages = {
+            'יהודי ממלכתי': { score: 87.1, examinees: 35.7 },
+            'יהודי ממלכתי דתי': { score: 88.2, examinees: 19.3 },
+            'ערבי': { score: 86.7, examinees: 29.3 },
+            'דרוזי': { score: 82.8, examinees: 24.9 },
+        };
+
+        const allHighSchools = [
+            'שש שנתי בוקעאתא', 'אדם ואדמה גולן', 'תיכון פה הזהב', 'אברט חצור הגלילית',
+            'קרית החינוך אמי"ת', 'מקיף טובא זנגריה', 'עיוני מג\'דל שמס', 'תיכון מסעדה',
+            'ברנקו וייס מרום גליל', 'תיכון סלמאן חטיב', 'ישיבת תיכונית אמי"ת', 'עמל בגין צפת',
+            'בית חנה', 'אולפנא אמי"ת', 'אולפנת קצרין', 'אורט דנציגר ק. שמונה',
+            'המתמיד קרית שמונה', 'ברנקו וייס ק.שמונה', 'אולפנית קרית שמונה',
+            'ישיבה תיכונית חיספין', 'ישיבת אלוני הבשן', 'רגבים בגולן',
+            'ברנקו וייס גולן', 'כפר הנוער איילת השחר', 'אולפנת רגבים אופק', 'תיכון תמר',
+            'מקיף עינות הירדן', 'מקיף עמק החולה', 'מקיף הר וגיא', 'מקיף אנה פרנק',
+            'ישיבת בנע מירון', 'יב"ע בר יוחאי', 'דרכא נופי גולן'
+        ];
+
+        // --- Data Processing ---
+        function calculateGroupStats(data) {
+            if (data.length === 0) return { avgGrade: '---', avgExaminees: '---', schools: [] };
+            const totalAvgExaminees = data.reduce((sum, item) => sum + item['ממוצע מספר נבחנים'], 0);
+            const weightedSum = data.reduce((sum, item) => sum + (item['ממוצע ציון סופי'] * item['ממוצע מספר נבחנים']), 0);
+            const avgGrade = totalAvgExaminees > 0 ? (weightedSum / totalAvgExaminees).toFixed(2) : '---';
+            const avgExamineesPerSchool = (totalAvgExaminees / data.length).toFixed(1);
+            const schools = data.map(item => ({ name: item['שם מוסד'], years: `(${item['שנים קיימות'].join(', ')})` }));
+            return { avgGrade, avgExaminees: avgExamineesPerSchool, schools };
+        }
+        
+        const druzeData = aggregatedData.filter(d => d.מגזר === 'דרוזי');
+        const arabData = aggregatedData.filter(d => d.מגזר === 'ערבי');
+        const jewishStateData = aggregatedData.filter(d => d.מגזר === 'יהודי' && d.פיקוח === 'ממלכתי');
+        const jewishReligiousData = aggregatedData.filter(d => d.מגזר === 'יהודי' && d.פיקוח === 'ממלכתי דתי');
+
+        const druzeStats = calculateGroupStats(druzeData);
+        const arabStats = calculateGroupStats(arabData);
+        const jewishStateStats = calculateGroupStats(jewishStateData);
+        const jewishReligiousStats = calculateGroupStats(jewishReligiousData);
+
+        // --- Render Functions ---
+        function createCard(title, stats, nationalAvg, colorClasses, isSubCard = false) {
+            const schoolList = stats.schools.map(school => `<li class="text-sm">${school.name} <span class="text-slate-500 text-xs">${school.years}</span></li>`).join('');
+            const cardSize = isSubCard ? 'p-6' : 'p-8';
+            const titleSize = isSubCard ? 'text-xl' : 'text-2xl';
+            const statTextSize = isSubCard ? 'text-2xl' : 'text-3xl';
+
+            return `
+                <div class="bg-white rounded-xl shadow-md overflow-hidden ${cardSize} flex flex-col border-t-4 ${colorClasses.border}">
+                    <h2 class="font-bold ${titleSize} ${colorClasses.text} mb-4">${title}</h2>
+                    <div class="flex-grow space-y-4">
+                        <div class="grid grid-cols-2 gap-4 text-center">
+                            <div>
+                                <p class="text-sm text-slate-500">ציון ממוצע</p>
+                                <p class="${statTextSize} font-bold">${stats.avgGrade}</p>
+                                <p class="text-xs text-slate-500 mt-1">ארצי: ${nationalAvg.score}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-500">ממוצע נבחנים לבי"ס (שנתי)</p>
+                                <p class="${statTextSize} font-bold">${stats.avgExaminees}</p>
+                                 <p class="text-xs text-slate-500 mt-1">ארצי: ${nationalAvg.examinees}</p>
+                            </div>
+                        </div>
+                        <div class="pt-4">
+                            <h3 class="font-semibold text-slate-600 mb-2">בתי ספר בקבוצה:</h3>
+                            <ul class="list-disc pr-5 space-y-1 text-slate-700">
+                                ${schoolList}
+                            </ul>
+                        </div>
+                    </div>
+                </div>`;
+        }
+        
+        function renderDashboard() {
+            const dashboard = document.getElementById('dashboard');
+            const jewishStateCard = createCard('ממלכתי', jewishStateStats, nationalAverages['יהודי ממלכתי'], { border: 'border-sky-500', text: 'text-sky-600' }, true);
+            const jewishReligiousCard = createCard('ממלכתי-דתי', jewishReligiousStats, nationalAverages['יהודי ממלכתי דתי'], { border: 'border-teal-500', text: 'text-teal-600' }, true);
+            const druzeCard = createCard('מגזר דרוזי', druzeStats, nationalAverages['דרוזי'], { border: 'border-violet-500', text: 'text-violet-600' });
+            const arabCard = createCard('מגזר ערבי', arabStats, nationalAverages['ערבי'], { border: 'border-amber-500', text: 'text-amber-600' });
+
+            dashboard.innerHTML = `
+                <div class="bg-white rounded-xl shadow-md overflow-hidden p-8 flex flex-col border-t-4 border-blue-600 jewish-grid-container">
+                     <h2 class="font-bold text-2xl text-blue-700 mb-4">המגזר היהודי</h2>
+                     <div class="jewish-grid flex-grow">
+                        ${jewishStateCard}
+                        ${jewishReligiousCard}
+                     </div>
+                </div>
+                ${druzeCard}
+                ${arabCard}
+            `;
+        }
+
+        function renderCharts() {
+            Chart.defaults.font.family = "'Assistant', sans-serif";
+            
+            // Eligibility Rate Chart
+            const eligibilityData = [
+                { label: 'בוקעאתה', value: 23.1 },
+                { label: 'מג\'דל שמס', value: 19.8 },
+                { label: 'גוש חלב', value: 18.6 },
+                { label: 'חצור הגלילית', value: 17.7 },
+                { label: 'גולן', value: 14.1 },
+                { label: 'הגליל העליון', value: 10.8 },
+                { label: 'מסעדה', value: 9.3 },
+                { label: 'צפת', value: 7.7 },
+                { label: 'קצרין', value: 7.1 },
+                { label: 'קרית שמונה', value: 7.1 }
+            ].sort((a,b) => b.value - a.value);
+
+            new Chart(document.getElementById('eligibilityRateChart'), {
+                type: 'bar',
+                data: {
+                    labels: eligibilityData.map(d => d.label),
+                    datasets: [{
+                        label: 'שיעור זכאים (%)',
+                        data: eligibilityData.map(d => d.value),
+                        backgroundColor: 'rgba(22, 163, 74, 0.7)',
+                        borderColor: 'rgba(22, 163, 74, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true, indexAxis: 'y',
+                    scales: { x: { beginAtZero: true, ticks: { callback: value => value + '%' } } },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: function(context) { return `שיעור זכאים: ${context.parsed.x.toFixed(1)}%`; } } }
+                    }
+                }
+            });
+
+            // Time Series Chart
+            const timeSeriesData = {
+                labels: [2017, 2018, 2019, 2020, 2021, 2022, 2023],
+                datasets: [{
+                    label: 'אחוז זכאים (אשכול גליל מזרחי)',
+                    data: [9.3, 8.7, 9.7, 10.7, 10.5, 9.8, 11.0],
+                    fill: false,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                },
+                {
+                    label: 'אחוז זכאים (ארצי)',
+                    data: [11.0, 11.6, 12.1, 12.5, 13.1, 12.9, 12.9],
+                    fill: false,
+                    borderColor: 'rgb(255, 99, 132)',
+                    tension: 0.1
+                }]
+            };
+            new Chart(document.getElementById('eligibilityTimeSeriesChart'), {
+                type: 'line',
+                data: timeSeriesData,
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: { callback: value => value.toFixed(1) + '%' }
+                        }
+                    },
+                    plugins: {
+                        legend: { 
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // School Examinees Bar Chart
+            const totalExaminees = aggregatedData.reduce((sum, school) => sum + school['ממוצע מספר נבחנים'], 0);
+            const avgExaminees = totalExaminees / aggregatedData.length;
+            const sortedSchoolsByExaminees = [...aggregatedData].sort((a, b) => b['ממוצע מספר נבחנים'] - a['ממוצע מספר נבחנים']);
+            new Chart(document.getElementById('schoolExamineesChart'), {
+                type: 'bar',
+                data: {
+                    labels: sortedSchoolsByExaminees.map(s => `${s['שם מוסד']} (${s['רשות מקומית']})`),
+                    datasets: [{
+                        label: 'מספר נבחנים ממוצע',
+                        data: sortedSchoolsByExaminees.map(s => s['ממוצע מספר נבחנים']),
+                        backgroundColor: 'rgba(139, 92, 246, 0.7)',
+                        borderColor: 'rgba(139, 92, 246, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `מספר נבחנים ממוצע: ${context.parsed.x.toFixed(1)}`;
+                                }
+                            }
+                        },
+                        annotation: {
+                            annotations: {
+                                localAvg: {
+                                    type: 'line',
+                                    xMin: avgExaminees,
+                                    xMax: avgExaminees,
+                                    borderColor: 'rgb(255, 99, 132)',
+                                    borderWidth: 2,
+                                    borderDash: [6, 6],
+                                    label: {
+                                        content: `ממוצע: ${avgExaminees.toFixed(1)}`,
+                                        position: 'end',
+                                        backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                                        font: {
+                                            family: 'Assistant'
+                                        },
+                                        display: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // New Pie Chart for Physics Program Distribution
+            const schoolsWithPhysics = aggregatedData.map(s => s['שם מוסד']);
+            const withPhysicsCount = schoolsWithPhysics.length;
+            const withoutPhysicsCount = allHighSchools.length - withPhysicsCount;
+
+            new Chart(document.getElementById('physicsProgramDistributionChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: [
+                        `מגישים לבגרות (${withPhysicsCount})`,
+                        ` לא מגישים / פחות מ-11 נבחנים(${withoutPhysicsCount})`
+                    ],
+                    datasets: [{
+                        label: 'מספר תיכונים',
+                        data: [withPhysicsCount, withoutPhysicsCount],
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.7)',
+                            'rgba(203, 213, 225, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(59, 130, 246, 1)',
+                            'rgba(203, 213, 225, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.label}: ${context.raw}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderSchoolBreakdown() {
+            const breakdownContainer = document.getElementById('school-breakdown');
+            
+            const schoolsWithPhysics = aggregatedData.map(s => s['שם מוסד']);
+            const schoolsWithoutPhysics = allHighSchools.filter(school => !schoolsWithPhysics.includes(school));
+
+            const withPhysicsList = schoolsWithPhysics.sort((a,b) => a.localeCompare(b)).map(s => `<li>${s}</li>`).join('');
+            const withoutPhysicsList = schoolsWithoutPhysics.sort((a,b) => a.localeCompare(b)).map(s => `<li>${s}</li>`).join('');
+
+            breakdownContainer.innerHTML = `
+                <div>
+                    <h3 class="font-semibold text-slate-700 mb-2 border-b pb-1">מגישים לבגרות בפיזיקה (${schoolsWithPhysics.length})</h3>
+                    <ul class="list-disc pr-5 space-y-1 text-slate-600">${withPhysicsList}</ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-700 mb-2 border-b pb-1"> לא מגישים / פחות מ-11 נבחנים (${schoolsWithoutPhysics.length})</h3>
+                    <ul class="list-disc pr-5 space-y-1 text-slate-600">${withoutPhysicsList}</ul>
+                </div>
+            `;
+        }
+
+        renderDashboard();
+        renderCharts();
+        renderSchoolBreakdown();
+    </script>
+</body>
+</html>
+
+
