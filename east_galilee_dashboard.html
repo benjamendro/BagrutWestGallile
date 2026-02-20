@@ -84,6 +84,7 @@
             <div class="analysis-card mb-8">
                 <h2 id="chart2-title" class="text-xl font-bold text-center mb-4"></h2>
                 <canvas id="yearTrendChart"></canvas>
+                <p id="chart2-note" class="text-sm text-slate-600 mt-4 text-center"></p>
             </div>
             <div class="analysis-card mb-8">
                 <h2 id="chart3-title" class="text-xl font-bold text-center mb-4"></h2>
@@ -238,24 +239,29 @@ function computeAggregated(filtered) {
             schoolMap[d.school] = {
                 school: d.school, authority: d.authority,
                 supervision: d.supervision, sector: d.sector,
-                years: [], weightedScoreSum: 0, totalExaminees: 0
+                years: [], scores: [], examinees: []
             };
         }
         const s = schoolMap[d.school];
         s.years.push(d.year);
-        s.weightedScoreSum += d.score * d.examinees;
-        s.totalExaminees += d.examinees;
+        s.scores.push(d.score);
+        s.examinees.push(d.examinees);
     });
 
-    return Object.values(schoolMap).map(s => ({
-        school: s.school,
-        authority: s.authority,
-        supervision: s.supervision,
-        sector: s.sector,
-        years: s.years.sort(),
-        avgScore: s.totalExaminees > 0 ? +(s.weightedScoreSum / s.totalExaminees).toFixed(2) : 0,
-        avgExaminees: +(s.totalExaminees / s.years.length).toFixed(2)
-    }));
+    return Object.values(schoolMap).map(s => {
+        const n = s.years.length;
+        const avgScore = n > 0 ? +(s.scores.reduce((a, b) => a + b, 0) / n).toFixed(2) : 0;
+        const avgExaminees = n > 0 ? +(s.examinees.reduce((a, b) => a + b, 0) / n).toFixed(2) : 0;
+        return {
+            school: s.school,
+            authority: s.authority,
+            supervision: s.supervision,
+            sector: s.sector,
+            years: s.years.sort(),
+            avgScore,
+            avgExaminees
+        };
+    });
 }
 
 function calculateGroupStats(data) {
@@ -377,48 +383,59 @@ function renderCharts(aggregated, filtered, subject, units, latestYear, totalLat
         }
     });
 
-    // --- Chart 2: Year trend (total examinees per year) ---
+    // --- Chart 2: Year trend (total examinees per year in cluster) ---
     const yearMap = {};
-    filtered.forEach(d => { yearMap[d.year] = (yearMap[d.year] || 0) + d.examinees; });
+    const yearScoreMap = {};
+    filtered.forEach(d => {
+        yearMap[d.year] = (yearMap[d.year] || 0) + d.examinees;
+        if (!yearScoreMap[d.year]) yearScoreMap[d.year] = { weightedSum: 0, total: 0 };
+        yearScoreMap[d.year].weightedSum += d.score * d.examinees;
+        yearScoreMap[d.year].total += d.examinees;
+    });
     const years = Object.keys(yearMap).map(Number).sort();
 
-    // Also get national trend
+    // National data for note
     const natYearMap = {};
     nationalData.filter(d => d.subject === subject && d.units === units).forEach(d => { natYearMap[d.year] = d.examinees; });
 
-    const datasets = [{
-        label: 'נבחנים באשכול',
-        data: years.map(y => yearMap[y] || 0),
-        borderColor: 'rgb(75, 192, 192)',
-        backgroundColor: 'rgba(75, 192, 192, 0.1)',
-        fill: true, tension: 0.1
-    }];
-
-    if (Object.keys(natYearMap).length > 0) {
-        datasets.push({
-            label: 'נבחנים ארצי',
-            data: years.map(y => natYearMap[y] || null),
-            borderColor: 'rgb(255, 99, 132)',
-            fill: false, tension: 0.1,
-            yAxisID: 'y1'
-        });
-    }
-
-    document.getElementById('chart2-title').textContent = `מגמת מספר נבחנים ב${subject} ${units} יח"ל לאורך השנים`;
+    document.getElementById('chart2-title').textContent = `מגמת מספר נבחנים ב${subject} ${units} יח"ל באשכול לאורך השנים`;
     activeCharts.yearTrend = new Chart(document.getElementById('yearTrendChart'), {
-        type: 'line',
-        data: { labels: years, datasets },
+        type: 'bar',
+        data: {
+            labels: years,
+            datasets: [{
+                label: 'מספר נבחנים באשכול',
+                data: years.map(y => yearMap[y] || 0),
+                backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        },
         options: {
             responsive: true,
-            scales: {
-                y: { beginAtZero: true, title: { display: true, text: 'נבחנים באשכול' } },
-                ...(Object.keys(natYearMap).length > 0 ? {
-                    y1: { position: 'left', beginAtZero: true, title: { display: true, text: 'נבחנים ארצי' }, grid: { drawOnChartArea: false } }
-                } : {})
-            },
-            plugins: { legend: { display: true, position: 'top' } }
+            scales: { y: { beginAtZero: true } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function(ctx) {
+                            const y = years[ctx.dataIndex];
+                            const avg = yearScoreMap[y] ? (yearScoreMap[y].weightedSum / yearScoreMap[y].total).toFixed(2) : '---';
+                            let tip = `ציון ממוצע משוקלל: ${avg}`;
+                            if (natYearMap[y]) tip += `\nנבחנים ארצי: ${natYearMap[y].toLocaleString()}`;
+                            return tip;
+                        }
+                    }
+                }
+            }
         }
     });
+
+    // Chart 2 note with national comparison
+    const natNotes = years.map(y => natYearMap[y] ? `${y}: ${natYearMap[y].toLocaleString()} (ארצי)` : null).filter(Boolean);
+    document.getElementById('chart2-note').innerHTML = natNotes.length > 0
+        ? `<strong>השוואה ארצית:</strong> ` + natNotes.join(' | ')
+        : '';
 
     // --- Chart 3: School examinees comparison ---
     const sorted = [...aggregated].sort((a, b) => b.avgExaminees - a.avgExaminees);
