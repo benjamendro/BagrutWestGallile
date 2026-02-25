@@ -201,6 +201,8 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
             min-width: 200px;
         }
         select:focus { outline: none; border-color: #3b82f6; }
+        optgroup { font-weight: 700; color: #1e293b; font-size: 1rem; }
+        optgroup option { font-weight: 400; color: #334155; padding-right: 0.5rem; }
         .selector-group { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; align-items: center; margin-top: 1.5rem; }
         .selector-label { font-weight: 600; color: #475569; }
         #no-data-msg { display: none; }
@@ -255,6 +257,14 @@ HTML_TEMPLATE = r'''<!DOCTYPE html>
                 <p class="text-xs text-slate-500 mt-2 text-center">הנתונים מייצגים ממוצע לשנים שבהן קיים מידע (2021-2024)</p>
             </div>
             <div class="analysis-card mb-8">
+                <h2 id="chart5-title" class="text-xl font-bold text-center mb-4"></h2>
+                <canvas id="authorityScoreChart"></canvas>
+            </div>
+            <div class="analysis-card mb-8">
+                <h2 id="chart6-title" class="text-xl font-bold text-center mb-4"></h2>
+                <canvas id="schoolScoreChart"></canvas>
+            </div>
+            <div class="analysis-card mb-8">
                 <h2 id="chart4-title" class="text-xl font-bold text-center mb-4"></h2>
                 <div class="chart-container" style="position: relative; height:300px; width:100%; max-width: 300px; margin: auto;">
                     <canvas id="distributionChart"></canvas>
@@ -306,15 +316,50 @@ function destroyCharts() {
 // ============================================================
 function init() {
     Chart.defaults.font.family = "'Assistant', sans-serif";
+    Chart.defaults.font.size = 14;
+
+    // Core subject patterns for categorization
+    const corePatterns = [
+        'אנגלית', 'פיסיקה', 'מתמטיקה', 'ביולוגיה', 'כימיה',
+        'ספרות', 'אזרחות', 'תנ"ך', 'תנך', "תנ'ך",
+        'היסטוריה', 'הסטוריה',
+        'עברית', 'ערבית',
+        'לשון'
+    ];
+
+    function isCoreSubject(name) {
+        return corePatterns.some(p => name.includes(p));
+    }
 
     const subjects = [...new Set(rawData.map(d => d.subject))].sort((a, b) => a.localeCompare(b, 'he'));
+    const coreSubjects = subjects.filter(isCoreSubject);
+    const additionalSubjects = subjects.filter(s => !isCoreSubject(s));
+
     const subjectSelect = document.getElementById('subjectSelect');
-    subjects.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s;
-        opt.textContent = s;
-        subjectSelect.appendChild(opt);
-    });
+
+    if (coreSubjects.length > 0) {
+        const coreGroup = document.createElement('optgroup');
+        coreGroup.label = 'מקצועות ליבה';
+        coreSubjects.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s;
+            coreGroup.appendChild(opt);
+        });
+        subjectSelect.appendChild(coreGroup);
+    }
+
+    if (additionalSubjects.length > 0) {
+        const additionalGroup = document.createElement('optgroup');
+        additionalGroup.label = 'מקצועות נוספים';
+        additionalSubjects.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s;
+            additionalGroup.appendChild(opt);
+        });
+        subjectSelect.appendChild(additionalGroup);
+    }
 
     subjectSelect.addEventListener('change', onSubjectChange);
     document.getElementById('unitsSelect').addEventListener('change', updateDashboard);
@@ -372,24 +417,28 @@ function updateDashboard() {
     document.getElementById('charts-section').style.display = '';
 
     const aggregated = computeAggregated(filtered);
-    const latestYear = Math.max(...filtered.map(d => d.year));
+    const availableYears = [...new Set(filtered.map(d => d.year))].sort();
+    const latestYear = Math.max(...availableYears);
     const latestYearData = filtered.filter(d => d.year === latestYear);
     const totalLatestExaminees = latestYearData.reduce((s, d) => s + d.examinees, 0);
 
-    // National average for this subject+units
+    // National weighted average score for this subject+units (across all available years)
     const natEntries = nationalData.filter(d => d.subject === subject && d.units === units);
-    const latestNatYear = natEntries.length > 0 ? Math.max(...natEntries.map(d => d.year)) : null;
-    const latestNat = natEntries.find(d => d.year === latestNatYear);
-    const natAvgScore = latestNat ? latestNat.score : null;
-    const natTotalExaminees = latestNat ? latestNat.examinees : null;
+    const natWeightedSum = natEntries.reduce((s, d) => s + d.score * d.examinees, 0);
+    const natTotalExaminees = natEntries.reduce((s, d) => s + d.examinees, 0);
+    const natAvgScore = natTotalExaminees > 0 ? +(natWeightedSum / natTotalExaminees).toFixed(2) : null;
+
+    // Cluster weighted average score
+    const clusterTotalExaminees = aggregated.reduce((s, d) => s + d.avgExaminees, 0);
+    const clusterWeightedSum = aggregated.reduce((s, d) => s + d.avgScore * d.avgExaminees, 0);
+    const clusterAvgScore = clusterTotalExaminees > 0 ? +(clusterWeightedSum / clusterTotalExaminees).toFixed(2) : null;
 
     document.getElementById('summary').textContent =
-        `בשנת ${latestYear} היו ${totalLatestExaminees} נבחנים ב${subject} ${units} יח"ל באשכול __REGION_HEB__` +
-        (natTotalExaminees ? ` (ארצי: ${natTotalExaminees.toLocaleString()})` : '');
+        `בשנת ${latestYear} היו ${totalLatestExaminees} נבחנים ב${subject} ${units} יח"ל באשכול __REGION_HEB__`;
 
-    renderCards(aggregated, natAvgScore);
+    renderCards(aggregated, natAvgScore, clusterAvgScore, availableYears);
     destroyCharts();
-    renderCharts(aggregated, filtered, subject, units, latestYear, totalLatestExaminees, natTotalExaminees);
+    renderCharts(aggregated, filtered, subject, units, latestYear, totalLatestExaminees, natAvgScore, clusterAvgScore, availableYears);
 }
 
 // ============================================================
@@ -440,7 +489,7 @@ function calculateGroupStats(data) {
 // ============================================================
 // RENDER SECTOR CARDS
 // ============================================================
-function renderCards(aggregated, natAvgScore) {
+function renderCards(aggregated, natAvgScore, clusterAvgScore, availableYears) {
     const druzeData = aggregated.filter(d => d.sector === 'דרוזי');
     const arabData = aggregated.filter(d => d.sector === 'ערבי');
     const jewishStateData = aggregated.filter(d => d.sector === 'יהודי' && d.supervision === 'ממלכתי');
@@ -451,7 +500,9 @@ function renderCards(aggregated, natAvgScore) {
     const jewishStateStats = calculateGroupStats(jewishStateData);
     const jewishReligiousStats = calculateGroupStats(jewishReligiousData);
 
-    const natLabel = natAvgScore ? `ארצי: ${natAvgScore}` : '';
+    const yearsLabel = availableYears.length === 1
+        ? `נתוני ${availableYears[0]}`
+        : `ממוצע שנים ${availableYears[0]}-${availableYears[availableYears.length - 1]}`;
 
     function createCard(title, stats, colorClasses, isSubCard) {
         const schoolList = stats.schools.map(s =>
@@ -465,19 +516,17 @@ function renderCards(aggregated, natAvgScore) {
             <div class="bg-white rounded-xl shadow-md overflow-hidden ${p} flex flex-col border-t-4 ${colorClasses.border}">
                 <h2 class="font-bold ${titleSz} ${colorClasses.text} mb-4">${title}</h2>
                 <div class="flex-grow space-y-4">
-                    <div class="grid grid-cols-2 gap-4 text-center">
-                        <div>
-                            <p class="text-sm text-slate-500">ציון ממוצע</p>
-                            <p class="${statSz} font-bold">${stats.avgGrade}</p>
-                            ${natLabel ? `<p class="text-xs text-slate-500 mt-1">${natLabel}</p>` : ''}
-                        </div>
-                        <div>
-                            <p class="text-sm text-slate-500">ממוצע נבחנים לבי"ס (שנתי)</p>
-                            <p class="${statSz} font-bold">${stats.avgExaminees}</p>
+                    <div class="text-center">
+                        <p class="text-sm text-slate-500">ציון ממוצע משוקלל</p>
+                        <p class="${statSz} font-bold">${stats.avgGrade}</p>
+                        <p class="text-xs text-slate-400 mt-1">${yearsLabel}</p>
+                        <div class="flex justify-center gap-4 mt-2 text-xs text-slate-500">
+                            ${natAvgScore ? `<span>ממוצע ארצי: ${natAvgScore}</span>` : ''}
+                            ${clusterAvgScore ? `<span>ממוצע אשכול: ${clusterAvgScore}</span>` : ''}
                         </div>
                     </div>
                     <div class="pt-4">
-                        <h3 class="font-semibold text-slate-600 mb-2">בתי ספר בקבוצה:</h3>
+                        <h3 class="font-semibold text-slate-600 mb-2">בתי ספר בקבוצה (${stats.schools.length}):</h3>
                         <ul class="list-disc pr-5 space-y-1 text-slate-700">${schoolList}</ul>
                     </div>
                 </div>
@@ -512,7 +561,11 @@ function renderCards(aggregated, natAvgScore) {
 // ============================================================
 // RENDER CHARTS
 // ============================================================
-function renderCharts(aggregated, filtered, subject, units, latestYear, totalLatest, natTotal) {
+function renderCharts(aggregated, filtered, subject, units, latestYear, totalLatest, natAvgScore, clusterAvgScore, availableYears) {
+    const yearsLabel = availableYears.length === 1
+        ? `נתוני ${availableYears[0]}`
+        : `ממוצע שנים ${availableYears[0]}-${availableYears[availableYears.length - 1]}`;
+
     // --- Chart 1: Examinees by authority (latest year) ---
     const latestData = filtered.filter(d => d.year === latestYear);
     const authMap = {};
@@ -521,8 +574,7 @@ function renderCharts(aggregated, filtered, subject, units, latestYear, totalLat
 
     document.getElementById('chart1-title').textContent = `מספר נבחנים ב${subject} ${units} יח"ל לפי רשות (${latestYear})`;
     document.getElementById('chart1-note').innerHTML =
-        `<strong>הערה:</strong> סה"כ ${totalLatest} נבחנים ב${subject} ${units} יח"ל באשכול __REGION_HEB__ בשנת ${latestYear}.` +
-        (natTotal ? ` הנתון הארצי: ${natTotal.toLocaleString()}.` : '');
+        `<strong>הערה:</strong> סה"כ ${totalLatest} נבחנים ב${subject} ${units} יח"ל באשכול __REGION_HEB__ בשנת ${latestYear}. הנתונים נכונים לשנת ${latestYear}.`;
 
     activeCharts.authority = new Chart(document.getElementById('authorityChart'), {
         type: 'bar',
@@ -538,10 +590,16 @@ function renderCharts(aggregated, filtered, subject, units, latestYear, totalLat
         },
         options: {
             responsive: true, indexAxis: 'y',
-            scales: { x: { beginAtZero: true } },
+            scales: {
+                x: { beginAtZero: true, ticks: { font: { size: 14 } } },
+                y: { ticks: { font: { size: 14 } } }
+            },
             plugins: {
                 legend: { display: false },
-                tooltip: { callbacks: { label: ctx => `מספר נבחנים: ${ctx.parsed.x}` } }
+                tooltip: {
+                    titleFont: { size: 14 }, bodyFont: { size: 14 },
+                    callbacks: { label: ctx => `מספר נבחנים: ${ctx.parsed.x}` }
+                }
             }
         }
     });
@@ -556,10 +614,6 @@ function renderCharts(aggregated, filtered, subject, units, latestYear, totalLat
         yearScoreMap[d.year].total += d.examinees;
     });
     const years = Object.keys(yearMap).map(Number).sort();
-
-    // National data for note
-    const natYearMap = {};
-    nationalData.filter(d => d.subject === subject && d.units === units).forEach(d => { natYearMap[d.year] = d.examinees; });
 
     document.getElementById('chart2-title').textContent = `מגמת מספר נבחנים ב${subject} ${units} יח"ל באשכול לאורך השנים`;
     activeCharts.yearTrend = new Chart(document.getElementById('yearTrendChart'), {
@@ -576,36 +630,33 @@ function renderCharts(aggregated, filtered, subject, units, latestYear, totalLat
         },
         options: {
             responsive: true,
-            scales: { y: { beginAtZero: true } },
+            scales: {
+                y: { beginAtZero: true, ticks: { font: { size: 14 } } },
+                x: { ticks: { font: { size: 14 } } }
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    titleFont: { size: 14 }, bodyFont: { size: 14 },
                     callbacks: {
                         afterLabel: function(ctx) {
                             const y = years[ctx.dataIndex];
                             const avg = yearScoreMap[y] ? (yearScoreMap[y].weightedSum / yearScoreMap[y].total).toFixed(2) : '---';
-                            let tip = `ציון ממוצע משוקלל: ${avg}`;
-                            if (natYearMap[y]) tip += `\nנבחנים ארצי: ${natYearMap[y].toLocaleString()}`;
-                            return tip;
+                            return `ציון ממוצע משוקלל: ${avg}`;
                         }
                     }
                 }
             }
         }
     });
-
-    // Chart 2 note with national comparison
-    const natNotes = years.map(y => natYearMap[y] ? `${y}: ${natYearMap[y].toLocaleString()} (ארצי)` : null).filter(Boolean);
-    document.getElementById('chart2-note').innerHTML = natNotes.length > 0
-        ? `<strong>השוואה ארצית:</strong> ` + natNotes.join(' | ')
-        : '';
+    document.getElementById('chart2-note').innerHTML = '';
 
     // --- Chart 3: School examinees comparison ---
     const sorted = [...aggregated].sort((a, b) => b.avgExaminees - a.avgExaminees);
     const totalExaminees = aggregated.reduce((s, d) => s + d.avgExaminees, 0);
     const avgExaminees = aggregated.length > 0 ? totalExaminees / aggregated.length : 0;
 
-    document.getElementById('chart3-title').textContent = `השוואת מספר נבחנים ממוצע ב${subject} בין מוסדות הלימוד`;
+    document.getElementById('chart3-title').textContent = `השוואת מספר נבחנים ממוצע ב${subject} בין מוסדות הלימוד (${yearsLabel})`;
     activeCharts.school = new Chart(document.getElementById('schoolChart'), {
         type: 'bar',
         data: {
@@ -620,10 +671,16 @@ function renderCharts(aggregated, filtered, subject, units, latestYear, totalLat
         },
         options: {
             responsive: true, indexAxis: 'y',
-            scales: { x: { beginAtZero: true } },
+            scales: {
+                x: { beginAtZero: true, ticks: { font: { size: 14 } } },
+                y: { ticks: { font: { size: 13 } } }
+            },
             plugins: {
                 legend: { display: false },
-                tooltip: { callbacks: { label: ctx => `מספר נבחנים ממוצע: ${ctx.parsed.x.toFixed(1)}` } },
+                tooltip: {
+                    titleFont: { size: 14 }, bodyFont: { size: 14 },
+                    callbacks: { label: ctx => `מספר נבחנים ממוצע: ${ctx.parsed.x.toFixed(1)}` }
+                },
                 annotation: {
                     annotations: {
                         localAvg: {
@@ -640,6 +697,152 @@ function renderCharts(aggregated, filtered, subject, units, latestYear, totalLat
                         }
                     }
                 }
+            }
+        }
+    });
+
+    // --- Chart 5: Average score by authority ---
+    const authScoreMap = {};
+    aggregated.forEach(d => {
+        if (!authScoreMap[d.authority]) authScoreMap[d.authority] = { weightedSum: 0, totalExaminees: 0 };
+        authScoreMap[d.authority].weightedSum += d.avgScore * d.avgExaminees;
+        authScoreMap[d.authority].totalExaminees += d.avgExaminees;
+    });
+    const authScoreEntries = Object.entries(authScoreMap).map(([auth, v]) => ({
+        auth, avgScore: v.totalExaminees > 0 ? +(v.weightedSum / v.totalExaminees).toFixed(2) : 0
+    })).sort((a, b) => b.avgScore - a.avgScore);
+
+    const chart5Annotations = {};
+    if (clusterAvgScore) {
+        chart5Annotations.clusterAvg = {
+            type: 'line',
+            xMin: clusterAvgScore, xMax: clusterAvgScore,
+            borderColor: 'rgb(255, 99, 132)', borderWidth: 2, borderDash: [6, 6],
+            label: {
+                content: `ממוצע אשכול: ${clusterAvgScore}`,
+                position: 'end',
+                backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                font: { family: 'Assistant', size: 13 },
+                display: true
+            }
+        };
+    }
+    if (natAvgScore) {
+        chart5Annotations.nationalAvg = {
+            type: 'line',
+            xMin: natAvgScore, xMax: natAvgScore,
+            borderColor: 'rgb(37, 99, 235)', borderWidth: 2, borderDash: [4, 4],
+            label: {
+                content: `ממוצע ארצי: ${natAvgScore}`,
+                position: 'start',
+                backgroundColor: 'rgba(37, 99, 235, 0.8)',
+                font: { family: 'Assistant', size: 13 },
+                display: true
+            }
+        };
+    }
+
+    const allScoresChart5 = authScoreEntries.map(e => e.avgScore);
+    const minScoreChart5 = Math.min(...allScoresChart5, clusterAvgScore || 999, natAvgScore || 999);
+
+    document.getElementById('chart5-title').textContent = `ציון ממוצע ב${subject} ${units} יח"ל לפי רשות מקומית (${yearsLabel})`;
+    activeCharts.authorityScore = new Chart(document.getElementById('authorityScoreChart'), {
+        type: 'bar',
+        data: {
+            labels: authScoreEntries.map(e => e.auth),
+            datasets: [{
+                label: 'ציון ממוצע',
+                data: allScoresChart5,
+                backgroundColor: 'rgba(234, 88, 12, 0.7)',
+                borderColor: 'rgba(234, 88, 12, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true, indexAxis: 'y',
+            scales: {
+                x: { beginAtZero: false, min: Math.max(0, Math.floor(minScoreChart5 - 5)), ticks: { font: { size: 14 } } },
+                y: { ticks: { font: { size: 14 } } }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    titleFont: { size: 14 }, bodyFont: { size: 14 },
+                    callbacks: { label: ctx => `ציון ממוצע: ${ctx.parsed.x}` }
+                },
+                annotation: { annotations: chart5Annotations }
+            }
+        }
+    });
+
+    // --- Chart 6: Average score by school ---
+    const schoolScoreSorted = [...aggregated].sort((a, b) => b.avgScore - a.avgScore);
+
+    const chart6Annotations = {};
+    if (clusterAvgScore) {
+        chart6Annotations.clusterAvg = {
+            type: 'line',
+            xMin: clusterAvgScore, xMax: clusterAvgScore,
+            borderColor: 'rgb(255, 99, 132)', borderWidth: 2, borderDash: [6, 6],
+            label: {
+                content: `ממוצע אשכול: ${clusterAvgScore}`,
+                position: 'end',
+                backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                font: { family: 'Assistant', size: 13 },
+                display: true
+            }
+        };
+    }
+    if (natAvgScore) {
+        chart6Annotations.nationalAvg = {
+            type: 'line',
+            xMin: natAvgScore, xMax: natAvgScore,
+            borderColor: 'rgb(37, 99, 235)', borderWidth: 2, borderDash: [4, 4],
+            label: {
+                content: `ממוצע ארצי: ${natAvgScore}`,
+                position: 'start',
+                backgroundColor: 'rgba(37, 99, 235, 0.8)',
+                font: { family: 'Assistant', size: 13 },
+                display: true
+            }
+        };
+    }
+
+    const allScoresChart6 = schoolScoreSorted.map(s => s.avgScore);
+    const minScoreChart6 = Math.min(...allScoresChart6, clusterAvgScore || 999, natAvgScore || 999);
+
+    document.getElementById('chart6-title').textContent = `ציון ממוצע ב${subject} ${units} יח"ל לפי מוסד לימוד (${yearsLabel})`;
+    activeCharts.schoolScore = new Chart(document.getElementById('schoolScoreChart'), {
+        type: 'bar',
+        data: {
+            labels: schoolScoreSorted.map(s => `${s.school} (${s.authority})`),
+            datasets: [{
+                label: 'ציון ממוצע',
+                data: allScoresChart6,
+                backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                borderColor: 'rgba(16, 185, 129, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true, indexAxis: 'y',
+            scales: {
+                x: { beginAtZero: false, min: Math.max(0, Math.floor(minScoreChart6 - 5)), ticks: { font: { size: 14 } } },
+                y: { ticks: { font: { size: 13 } } }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    titleFont: { size: 14 }, bodyFont: { size: 14 },
+                    callbacks: {
+                        label: ctx => `ציון ממוצע: ${ctx.parsed.x}`,
+                        afterLabel: ctx => {
+                            const s = schoolScoreSorted[ctx.dataIndex];
+                            return `שנים: ${s.years.join(', ')}`;
+                        }
+                    }
+                },
+                annotation: { annotations: chart6Annotations }
             }
         }
     });
@@ -665,8 +868,11 @@ function renderCharts(aggregated, filtered, subject, units, latestYear, totalLat
         options: {
             responsive: true, maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'top' },
-                tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw}` } }
+                legend: { position: 'top', labels: { font: { size: 14 } } },
+                tooltip: {
+                    titleFont: { size: 14 }, bodyFont: { size: 14 },
+                    callbacks: { label: ctx => `${ctx.label}: ${ctx.raw}` }
+                }
             }
         }
     });
