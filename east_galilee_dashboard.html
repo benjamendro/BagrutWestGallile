@@ -38,6 +38,8 @@
             min-width: 200px;
         }
         select:focus { outline: none; border-color: #3b82f6; }
+        optgroup { font-weight: 700; color: #1e293b; font-size: 1rem; }
+        optgroup option { font-weight: 400; color: #334155; padding-right: 0.5rem; }
         .selector-group { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; align-items: center; margin-top: 1.5rem; }
         .selector-label { font-weight: 600; color: #475569; }
         #no-data-msg { display: none; }
@@ -92,6 +94,14 @@
                 <p class="text-xs text-slate-500 mt-2 text-center">הנתונים מייצגים ממוצע לשנים שבהן קיים מידע (2021-2024)</p>
             </div>
             <div class="analysis-card mb-8">
+                <h2 id="chart5-title" class="text-xl font-bold text-center mb-4"></h2>
+                <canvas id="authorityScoreChart"></canvas>
+            </div>
+            <div class="analysis-card mb-8">
+                <h2 id="chart6-title" class="text-xl font-bold text-center mb-4"></h2>
+                <canvas id="schoolScoreChart"></canvas>
+            </div>
+            <div class="analysis-card mb-8">
                 <h2 id="chart4-title" class="text-xl font-bold text-center mb-4"></h2>
                 <div class="chart-container" style="position: relative; height:300px; width:100%; max-width: 300px; margin: auto;">
                     <canvas id="distributionChart"></canvas>
@@ -143,15 +153,50 @@ function destroyCharts() {
 // ============================================================
 function init() {
     Chart.defaults.font.family = "'Assistant', sans-serif";
+    Chart.defaults.font.size = 14;
+
+    // Core subject patterns for categorization
+    const corePatterns = [
+        'אנגלית', 'פיסיקה', 'מתמטיקה', 'ביולוגיה', 'כימיה',
+        'ספרות', 'אזרחות', 'תנ"ך', 'תנך',
+        'היסטוריה', 'הסטוריה',
+        'עברית', 'ערבית',
+        'לשון'
+    ];
+
+    function isCoreSubject(name) {
+        return corePatterns.some(p => name.includes(p));
+    }
 
     const subjects = [...new Set(rawData.map(d => d.subject))].sort((a, b) => a.localeCompare(b, 'he'));
+    const coreSubjects = subjects.filter(isCoreSubject);
+    const additionalSubjects = subjects.filter(s => !isCoreSubject(s));
+
     const subjectSelect = document.getElementById('subjectSelect');
-    subjects.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s;
-        opt.textContent = s;
-        subjectSelect.appendChild(opt);
-    });
+
+    if (coreSubjects.length > 0) {
+        const coreGroup = document.createElement('optgroup');
+        coreGroup.label = 'מקצועות ליבה';
+        coreSubjects.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s;
+            coreGroup.appendChild(opt);
+        });
+        subjectSelect.appendChild(coreGroup);
+    }
+
+    if (additionalSubjects.length > 0) {
+        const additionalGroup = document.createElement('optgroup');
+        additionalGroup.label = 'מקצועות נוספים';
+        additionalSubjects.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s;
+            additionalGroup.appendChild(opt);
+        });
+        subjectSelect.appendChild(additionalGroup);
+    }
 
     subjectSelect.addEventListener('change', onSubjectChange);
     document.getElementById('unitsSelect').addEventListener('change', updateDashboard);
@@ -375,10 +420,16 @@ function renderCharts(aggregated, filtered, subject, units, latestYear, totalLat
         },
         options: {
             responsive: true, indexAxis: 'y',
-            scales: { x: { beginAtZero: true } },
+            scales: {
+                x: { beginAtZero: true, ticks: { font: { size: 14 } } },
+                y: { ticks: { font: { size: 14 } } }
+            },
             plugins: {
                 legend: { display: false },
-                tooltip: { callbacks: { label: ctx => `מספר נבחנים: ${ctx.parsed.x}` } }
+                tooltip: {
+                    titleFont: { size: 14 }, bodyFont: { size: 14 },
+                    callbacks: { label: ctx => `מספר נבחנים: ${ctx.parsed.x}` }
+                }
             }
         }
     });
@@ -413,10 +464,14 @@ function renderCharts(aggregated, filtered, subject, units, latestYear, totalLat
         },
         options: {
             responsive: true,
-            scales: { y: { beginAtZero: true } },
+            scales: {
+                y: { beginAtZero: true, ticks: { font: { size: 14 } } },
+                x: { ticks: { font: { size: 14 } } }
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    titleFont: { size: 14 }, bodyFont: { size: 14 },
                     callbacks: {
                         afterLabel: function(ctx) {
                             const y = years[ctx.dataIndex];
@@ -457,10 +512,16 @@ function renderCharts(aggregated, filtered, subject, units, latestYear, totalLat
         },
         options: {
             responsive: true, indexAxis: 'y',
-            scales: { x: { beginAtZero: true } },
+            scales: {
+                x: { beginAtZero: true, ticks: { font: { size: 14 } } },
+                y: { ticks: { font: { size: 13 } } }
+            },
             plugins: {
                 legend: { display: false },
-                tooltip: { callbacks: { label: ctx => `מספר נבחנים ממוצע: ${ctx.parsed.x.toFixed(1)}` } },
+                tooltip: {
+                    titleFont: { size: 14 }, bodyFont: { size: 14 },
+                    callbacks: { label: ctx => `מספר נבחנים ממוצע: ${ctx.parsed.x.toFixed(1)}` }
+                },
                 annotation: {
                     annotations: {
                         localAvg: {
@@ -472,6 +533,120 @@ function renderCharts(aggregated, filtered, subject, units, latestYear, totalLat
                                 position: 'end',
                                 backgroundColor: 'rgba(255, 99, 132, 0.8)',
                                 font: { family: 'Assistant' },
+                                display: true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // --- Chart 5: Average score by authority ---
+    const authScoreMap = {};
+    aggregated.forEach(d => {
+        if (!authScoreMap[d.authority]) authScoreMap[d.authority] = { weightedSum: 0, totalExaminees: 0 };
+        authScoreMap[d.authority].weightedSum += d.avgScore * d.avgExaminees;
+        authScoreMap[d.authority].totalExaminees += d.avgExaminees;
+    });
+    const authScoreEntries = Object.entries(authScoreMap).map(([auth, v]) => ({
+        auth, avgScore: v.totalExaminees > 0 ? +(v.weightedSum / v.totalExaminees).toFixed(2) : 0
+    })).sort((a, b) => b.avgScore - a.avgScore);
+    const overallAvgScore = (() => {
+        const tot = aggregated.reduce((s, d) => s + d.avgExaminees, 0);
+        return tot > 0 ? aggregated.reduce((s, d) => s + d.avgScore * d.avgExaminees, 0) / tot : 0;
+    })();
+
+    document.getElementById('chart5-title').textContent = `ציון ממוצע ב${subject} ${units} יח"ל לפי רשות מקומית`;
+    activeCharts.authorityScore = new Chart(document.getElementById('authorityScoreChart'), {
+        type: 'bar',
+        data: {
+            labels: authScoreEntries.map(e => e.auth),
+            datasets: [{
+                label: 'ציון ממוצע',
+                data: authScoreEntries.map(e => e.avgScore),
+                backgroundColor: 'rgba(234, 88, 12, 0.7)',
+                borderColor: 'rgba(234, 88, 12, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true, indexAxis: 'y',
+            scales: {
+                x: { beginAtZero: false, min: Math.max(0, Math.floor(Math.min(...authScoreEntries.map(e => e.avgScore)) - 5)), ticks: { font: { size: 14 } } },
+                y: { ticks: { font: { size: 14 } } }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    titleFont: { size: 14 }, bodyFont: { size: 14 },
+                    callbacks: { label: ctx => `ציון ממוצע: ${ctx.parsed.x}` }
+                },
+                annotation: {
+                    annotations: {
+                        clusterAvg: {
+                            type: 'line',
+                            xMin: overallAvgScore, xMax: overallAvgScore,
+                            borderColor: 'rgb(255, 99, 132)', borderWidth: 2, borderDash: [6, 6],
+                            label: {
+                                content: `ממוצע אשכול: ${overallAvgScore.toFixed(2)}`,
+                                position: 'end',
+                                backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                                font: { family: 'Assistant', size: 13 },
+                                display: true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // --- Chart 6: Average score by school ---
+    const schoolScoreSorted = [...aggregated].sort((a, b) => b.avgScore - a.avgScore);
+
+    document.getElementById('chart6-title').textContent = `ציון ממוצע ב${subject} ${units} יח"ל לפי מוסד לימוד`;
+    activeCharts.schoolScore = new Chart(document.getElementById('schoolScoreChart'), {
+        type: 'bar',
+        data: {
+            labels: schoolScoreSorted.map(s => `${s.school} (${s.authority})`),
+            datasets: [{
+                label: 'ציון ממוצע',
+                data: schoolScoreSorted.map(s => s.avgScore),
+                backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                borderColor: 'rgba(16, 185, 129, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true, indexAxis: 'y',
+            scales: {
+                x: { beginAtZero: false, min: Math.max(0, Math.floor(Math.min(...schoolScoreSorted.map(s => s.avgScore)) - 5)), ticks: { font: { size: 14 } } },
+                y: { ticks: { font: { size: 13 } } }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    titleFont: { size: 14 }, bodyFont: { size: 14 },
+                    callbacks: {
+                        label: ctx => `ציון ממוצע: ${ctx.parsed.x}`,
+                        afterLabel: ctx => {
+                            const s = schoolScoreSorted[ctx.dataIndex];
+                            return `שנים: ${s.years.join(', ')}\nנבחנים ממוצע: ${s.avgExaminees}`;
+                        }
+                    }
+                },
+                annotation: {
+                    annotations: {
+                        clusterAvg: {
+                            type: 'line',
+                            xMin: overallAvgScore, xMax: overallAvgScore,
+                            borderColor: 'rgb(255, 99, 132)', borderWidth: 2, borderDash: [6, 6],
+                            label: {
+                                content: `ממוצע אשכול: ${overallAvgScore.toFixed(2)}`,
+                                position: 'end',
+                                backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                                font: { family: 'Assistant', size: 13 },
                                 display: true
                             }
                         }
@@ -502,8 +677,11 @@ function renderCharts(aggregated, filtered, subject, units, latestYear, totalLat
         options: {
             responsive: true, maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'top' },
-                tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw}` } }
+                legend: { position: 'top', labels: { font: { size: 14 } } },
+                tooltip: {
+                    titleFont: { size: 14 }, bodyFont: { size: 14 },
+                    callbacks: { label: ctx => `${ctx.label}: ${ctx.raw}` }
+                }
             }
         }
     });
